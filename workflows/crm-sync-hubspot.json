@@ -1,0 +1,106 @@
+{
+  "name": "CRM Sync HubSpot",
+  "description": "Syncs new contacts between sources and creates/updates HubSpot contacts with email confirmation",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/contacts",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Contact Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "apiKey",
+        "authenticationType": "apiKey",
+        "endpoint": "crm/v3/objects/contacts",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "properties",
+              "value": "{\n  \"firstname\": \"{{ $json.firstName }}\",\n  \"lastname\": \"{{ $json.lastName }}\",\n  \"email\": \"{{ $json.email }}\",\n  \"company\": \"{{ $json.company }}\",\n  \"phone\": \"{{ $json.phone }}\"\n}\n"
+            }
+          ]
+        }
+      },
+      "name": "Create HubSpot Contact",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "to": "{{ $json.email }}",
+        "subject": "Welcome to Our CRM",
+        "emailType": "html",
+        "htmlBody": "<h1>Welcome {{ $json.firstName }}!</h1>\n<p>We've added your contact to our system and look forward to working with you.</p>"
+      },
+      "name": "Send Confirmation Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "json": "{\n  \"contactId\": \"{{ $json.id }}\",\n  \"email\": \"{{ $json.email }}\",\n  \"synced_at\": \"{{ now() }}\"\n}"
+      },
+      "name": "Log Sync Result",
+      "type": "n8n-nodes-base.jsonParse",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Contact Webhook": {
+      "main": [
+        [
+          {
+            "node": "Create HubSpot Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create HubSpot Contact": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confirmation Email": {
+      "main": [
+        [
+          {
+            "node": "Log Sync Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    "crm",
+    "integration"
+  ]
+}

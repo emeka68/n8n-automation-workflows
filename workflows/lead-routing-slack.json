@@ -1,0 +1,143 @@
+{
+  "name": "Lead Routing to Slack",
+  "description": "Enriches incoming leads with Clearbit, scores quality, and routes to appropriate Slack channels",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/leads",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Lead Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "json": "{\n  \"email\": \"{{ $json.email }}\",\n  \"company\": \"{{ $json.company }}\",\n  \"score\": \"{{ $json.score || 0 }}\"\n}"
+      },
+      "name": "Parse Lead Data",
+      "type": "n8n-nodes-base.jsonParse",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "apiKey",
+        "apiKey": "{{ $env.CLEARBIT_API_KEY }}",
+        "email": "={{ $json.email }}"
+      },
+      "name": "Clearbit Enrichment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.score }}",
+              "operation": "greater",
+              "value2": 75
+            }
+          ]
+        }
+      },
+      "name": "Score Quality Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "channel": "#hot-leads",
+        "messageType": "json",
+        "jsonValues": "{\n  \"text\": \"🔥 Hot Lead Incoming\",\n  \"blocks\": [\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Company:* {{ $json.enrichment.company.name }}\\n*Email:* {{ $json.email }}\\n*Score:* {{ $json.score }}\"\n      }\n    }\n  ]\n}"
+      },
+      "name": "Send to Hot Leads",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "channel": "#warm-leads",
+        "messageType": "json",
+        "jsonValues": "{\n  \"text\": \"📊 Warm Lead\",\n  \"blocks\": [\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Company:* {{ $json.enrichment.company.name }}\\n*Email:* {{ $json.email }}\\n*Score:* {{ $json.score }}\"\n      }\n    }\n  ]\n}"
+      },
+      "name": "Send to Warm Leads",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    }
+  ],
+  "connections": {
+    "Lead Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Lead Data": {
+      "main": [
+        [
+          {
+            "node": "Clearbit Enrichment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clearbit Enrichment": {
+      "main": [
+        [
+          {
+            "node": "Score Quality Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Quality Check": {
+      "main": [
+        [
+          {
+            "node": "Send to Hot Leads",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send to Warm Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    "sales",
+    "lead-generation"
+  ]
+}

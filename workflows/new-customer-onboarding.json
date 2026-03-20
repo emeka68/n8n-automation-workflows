@@ -1,0 +1,163 @@
+{
+  "name": "New Customer Onboarding",
+  "description": "Webhook trigger on new customer, sends welcome email sequence, creates CRM record, notifies sales team, adds to newsletter",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/new-customer",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "New Customer Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "to": "{{ $json.email }}",
+        "subject": "Welcome to {{ $env.COMPANY_NAME }}! 🎉",
+        "emailType": "html",
+        "htmlBody": "<h1>Welcome {{ $json.company }}!</h1>\n<p>We're excited to have you on board. Your account is now active.</p>\n<p><a href='{{ $env.ONBOARDING_LINK }}'>Get Started →</a></p>"
+      },
+      "name": "Send Welcome Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [450, 250]
+    },
+    {
+      "parameters": {
+        "authentication": "apiKey",
+        "endpoint": "crm/v3/objects/companies",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "properties",
+              "value": "{\n  \"name\": \"{{ $json.company }}\",\n  \"industry\": \"{{ $json.industry }}\",\n  \"contact_email\": \"{{ $json.email }}\",\n  \"contact_name\": \"{{ $json.contact_name }}\",\n  \"website\": \"{{ $json.website }}\"\n}\n"
+            }
+          ]
+        }
+      },
+      "name": "Create HubSpot Company",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 1,
+      "position": [450, 350]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "channel": "#sales-new-customers",
+        "messageType": "json",
+        "jsonValues": "{\n  \"text\": \"🎊 New Customer Onboarded\",\n  \"blocks\": [\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Company:* {{ $json.company }}\\n*Contact:* {{ $json.contact_name }}\\n*Email:* {{ $json.email }}\\n*Industry:* {{ $json.industry }}\"\n      }\n    }\n  ]\n}"
+      },
+      "name": "Notify Sales Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "{{ $env.NEWSLETTER_API_URL }}/subscribe",
+        "method": "POST",
+        "authentication": "apiKey",
+        "sendBody": true,
+        "bodyParameters": {
+          "type": "json",
+          "json": "{\n  \"email\": \"{{ $json.email }}\",\n  \"company\": \"{{ $json.company }}\",\n  \"source\": \"customer_onboarding\"\n}\n"
+        }
+      },
+      "name": "Add to Newsletter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "mode": "append",
+        "range": "Onboarding!A1",
+        "values": "{{ now().format('YYYY-MM-DD HH:mm') }}, {{ $json.company }}, {{ $json.email }}, {{ $json.industry }}, {{ 'Completed' }}"
+      },
+      "name": "Log to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "New Customer Webhook": {
+      "main": [
+        [
+          {
+            "node": "Send Welcome Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create HubSpot Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Welcome Email": {
+      "main": [
+        [
+          {
+            "node": "Notify Sales Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create HubSpot Company": {
+      "main": [
+        [
+          {
+            "node": "Notify Sales Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Sales Team": {
+      "main": [
+        [
+          {
+            "node": "Add to Newsletter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add to Newsletter": {
+      "main": [
+        [
+          {
+            "node": "Log to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    "sales",
+    "onboarding",
+    "customer-success"
+  ]
+}
