@@ -1,5 +1,7 @@
 # n8n Automation Workflows
 
+[![Tests](https://github.com/emeka68/n8n-automation-workflows/actions/workflows/tests.yml/badge.svg)](https://github.com/emeka68/n8n-automation-workflows/actions/workflows/tests.yml)
+
 Production-ready n8n workflow library with Python management toolkit for common business automation use cases.
 
 **Portfolio piece for landing n8n automation jobs on Upwork.**
