@@ -9,6 +9,12 @@ import json
 import requests
 from typing import Dict, List, Optional, Any
 
+DEFAULT_TIMEOUT = 30
+
+
+class N8nAPIError(Exception):
+    """Raised when the n8n API returns an error response or is unreachable."""
+
 
 class N8nClient:
     """Client for n8n REST API operations."""
@@ -44,14 +50,28 @@ class N8nClient:
             Response JSON as dict
         """
         url = f"{self.base_url}/api/v1/{endpoint.lstrip('/')}"
-        kwargs = {"headers": self.headers}
-        
+        kwargs = {"headers": self.headers, "timeout": DEFAULT_TIMEOUT}
+
         if data:
             kwargs["json"] = data
 
-        response = requests.request(method, url, **kwargs)
-        response.raise_for_status()
-        
+        try:
+            response = requests.request(method, url, **kwargs)
+        except requests.exceptions.ConnectionError as e:
+            raise N8nAPIError(f"Could not connect to n8n at {self.base_url}: {e}") from e
+        except requests.exceptions.Timeout as e:
+            raise N8nAPIError(f"Request to {url} timed out after {DEFAULT_TIMEOUT}s") from e
+        except requests.exceptions.RequestException as e:
+            raise N8nAPIError(f"Request to {url} failed: {e}") from e
+
+        if not response.ok:
+            detail = response.text
+            try:
+                detail = response.json().get("message", detail)
+            except ValueError:
+                pass
+            raise N8nAPIError(f"n8n API error ({response.status_code}) on {method} {endpoint}: {detail}")
+
         return response.json() if response.text else {}
 
     def list_workflows(self) -> List[Dict[str, Any]]:

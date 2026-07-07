@@ -274,6 +274,24 @@ python workflow_manager.py backup \
   --output backup_2024_03_20.json
 ```
 
+### Activate / Deactivate / Executions
+```bash
+python workflow_manager.py activate <workflow_id> --n8n-url http://localhost:5678 --api-key your_api_key
+python workflow_manager.py deactivate <workflow_id> --n8n-url http://localhost:5678 --api-key your_api_key
+python workflow_manager.py executions <workflow_id> --n8n-url http://localhost:5678 --api-key your_api_key
+```
+
+---
+
+## Testing
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+30 tests cover: JSON schema validation for all 6 shipped workflows, the programmatic template generators, and the `N8nClient` REST wrapper (mocked HTTP via `responses`, including error paths).
+
 ---
 
 ## Customization

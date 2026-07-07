@@ -55,22 +55,22 @@ def cli():
     pass
 
 
-@cli.command()
-def list():
+@cli.command("list")
+def list_workflows():
     """List all workflow files in workflows/ directory."""
     if not WORKFLOW_DIR.exists():
         click.echo(f"Workflow directory not found: {WORKFLOW_DIR}")
         return
-    
-    workflows = list(WORKFLOW_DIR.glob("*.json"))
-    
-    if not workflows:
+
+    workflow_files = sorted(WORKFLOW_DIR.glob("*.json"))
+
+    if not workflow_files:
         click.echo("No workflows found.")
         return
-    
-    click.echo(f"\nFound {len(workflows)} workflow(s):\n")
-    
-    for wf_file in sorted(workflows):
+
+    click.echo(f"\nFound {len(workflow_files)} workflow(s):\n")
+
+    for wf_file in workflow_files:
         try:
             wf_json = load_workflow_json(str(wf_file))
             name = wf_json.get("name", "Unknown")
@@ -166,6 +166,72 @@ def backup(n8n_url: Optional[str], api_key: Optional[str], output: str):
         click.echo(f"✅ Backed up {len(workflows)} workflow(s) to {output}")
     except Exception as e:
         click.echo(f"❌ Backup failed: {e}")
+
+
+@cli.command()
+@click.argument("workflow_id")
+@click.option("--n8n-url", envvar="N8N_URL", help="n8n instance URL")
+@click.option("--api-key", envvar="N8N_API_KEY", help="n8n API key")
+def activate(workflow_id: str, n8n_url: Optional[str], api_key: Optional[str]):
+    """Activate a workflow on the n8n instance."""
+    if not n8n_url or not api_key:
+        click.echo("❌ N8N_URL and N8N_API_KEY are required")
+        click.echo("   Set them as environment variables or pass --n8n-url and --api-key")
+        return
+
+    try:
+        client = N8nClient(base_url=n8n_url, api_key=api_key)
+        result = client.activate_workflow(workflow_id)
+        click.echo(f"✅ Activated: {result.get('name', workflow_id)}")
+    except Exception as e:
+        click.echo(f"❌ Activation failed: {e}")
+
+
+@cli.command()
+@click.argument("workflow_id")
+@click.option("--n8n-url", envvar="N8N_URL", help="n8n instance URL")
+@click.option("--api-key", envvar="N8N_API_KEY", help="n8n API key")
+def deactivate(workflow_id: str, n8n_url: Optional[str], api_key: Optional[str]):
+    """Deactivate a workflow on the n8n instance."""
+    if not n8n_url or not api_key:
+        click.echo("❌ N8N_URL and N8N_API_KEY are required")
+        click.echo("   Set them as environment variables or pass --n8n-url and --api-key")
+        return
+
+    try:
+        client = N8nClient(base_url=n8n_url, api_key=api_key)
+        result = client.deactivate_workflow(workflow_id)
+        click.echo(f"✅ Deactivated: {result.get('name', workflow_id)}")
+    except Exception as e:
+        click.echo(f"❌ Deactivation failed: {e}")
+
+
+@cli.command()
+@click.argument("workflow_id")
+@click.option("--n8n-url", envvar="N8N_URL", help="n8n instance URL")
+@click.option("--api-key", envvar="N8N_API_KEY", help="n8n API key")
+@click.option("--limit", default=10, help="Maximum number of executions to show")
+def executions(workflow_id: str, n8n_url: Optional[str], api_key: Optional[str], limit: int):
+    """Show recent execution history for a workflow."""
+    if not n8n_url or not api_key:
+        click.echo("❌ N8N_URL and N8N_API_KEY are required")
+        click.echo("   Set them as environment variables or pass --n8n-url and --api-key")
+        return
+
+    try:
+        client = N8nClient(base_url=n8n_url, api_key=api_key)
+        runs = client.get_workflow_executions(workflow_id, limit=limit)
+
+        if not runs:
+            click.echo("No executions found.")
+            return
+
+        click.echo(f"\nLast {len(runs)} execution(s):\n")
+        for run in runs:
+            status = "success" if run.get("finished") else run.get("status", "unknown")
+            click.echo(f"  {run.get('id')}  {run.get('startedAt', '?')}  {status}")
+    except Exception as e:
+        click.echo(f"❌ Failed to fetch executions: {e}")
 
 
 if __name__ == "__main__":
