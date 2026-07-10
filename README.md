@@ -4,8 +4,6 @@
 
 Production-ready n8n workflow library with Python management toolkit for common business automation use cases.
 
-**Portfolio piece for landing n8n automation jobs on Upwork.**
-
 ---
 
 ## What's Included
@@ -59,6 +57,24 @@ pip install -r requirements.txt
 # Configure environment
 cp .env.example .env
 # Edit .env with your n8n URL and API key
+```
+
+### Run n8n Locally with Docker
+
+No existing n8n instance? Spin one up with the included `docker-compose.yml`:
+
+```bash
+docker-compose up -d
+```
+
+Then:
+1. Open http://localhost:5678 and create your owner account (first run only).
+2. Go to **Settings → n8n API** and create an API key.
+3. Put that key in `.env` as `N8N_API_KEY` (URL is already `http://localhost:5678`).
+
+```bash
+python workflow_manager.py list
+python workflow_manager.py deploy workflows/lead-routing-slack.json
 ```
 
 ### Deploy a Workflow
@@ -268,6 +284,11 @@ python workflow_manager.py deploy workflows/lead-routing-slack.json \
   --api-key your_api_key
 ```
 
+Preview a deploy without touching the n8n instance:
+```bash
+python workflow_manager.py deploy workflows/lead-routing-slack.json --dry-run
+```
+
 ### Backup All Workflows
 ```bash
 python workflow_manager.py backup \
@@ -282,6 +303,12 @@ python workflow_manager.py activate <workflow_id> --n8n-url http://localhost:567
 python workflow_manager.py deactivate <workflow_id> --n8n-url http://localhost:5678 --api-key your_api_key
 python workflow_manager.py executions <workflow_id> --n8n-url http://localhost:5678 --api-key your_api_key
 ```
+
+### Health Check
+```bash
+python workflow_manager.py health --n8n-url http://localhost:5678 --api-key your_api_key
+```
+Reports active/inactive workflow counts and the recent execution success rate for each workflow.
 
 ---
 
@@ -337,8 +364,4 @@ LinkedIn: [emeka-duru](https://linkedin.com/in/emeka-duru)
 
 ## License
 
-MIT License - use freely for portfolio and commercial projects.
-
----
-
-Made with ❤️ for n8n automation professionals.
+MIT License
